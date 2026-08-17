@@ -49,6 +49,8 @@ import { voyage } from '@mastra/voyageai';
 await voyage.v4large.doEmbed({ values: ['...'] }); // voyage-4-large (120k batch tokens)
 await voyage.v4.doEmbed({ values: ['...'] }); // voyage-4 (320k batch tokens)
 await voyage.v4lite.doEmbed({ values: ['...'] }); // voyage-4-lite (1M batch tokens)
+await voyage.v4nano.doEmbed({ values: ['...'] }); // voyage-4-nano (open-weight)
+await voyage.code4.doEmbed({ values: ['...'] }); // voyage-code-4 (code retrieval)
 
 // Voyage-3 series
 await voyage.large.doEmbed({ values: ['...'] }); // voyage-3-large
@@ -141,43 +143,29 @@ await vectorStore.upsert({
 
 ## Contextualized Chunk Embeddings
 
-Embed chunks with document context to avoid "context loss":
+Contextualized models produce embeddings that account for the surrounding document, which improves retrieval over plain chunk embeddings. This integration exposes them as a standard text embedder: **each input string is embedded independently as its own document**, so you get exactly one embedding per input.
 
 ```typescript
 import { voyageContextualizedEmbedding } from '@mastra/voyageai';
 
-const contextual = voyageContextualizedEmbedding('voyage-context-3');
+const contextual = voyageContextualizedEmbedding('voyage-context-4');
 
-// Embed document chunks (inner arrays = chunks from same document)
+// Each string is embedded independently (one embedding per input)
 const result = await contextual.doEmbed({
-  values: [['Paragraph 1 from doc 1...', 'Paragraph 2 from doc 1...'], ['Content from doc 2...']],
-  inputType: 'document',
+  values: ['First document...', 'Second document...'],
 });
+console.log(result.embeddings.length); // 2
 
-// Returns embeddings for each chunk, preserving document context
-console.log(result.embeddings.length); // 3 (2 from doc 1, 1 from doc 2)
-console.log(result.chunkCounts); // [2, 1]
-
-// Query embedding
-const queryEmbedding = await contextual.embedQuery('What was the revenue?');
+// Embed a query for retrieval
+const query = await contextual.doEmbed({
+  values: ['What was the revenue?'],
+  providerOptions: { voyage: { inputType: 'query' } },
+});
 ```
 
-### Helper Methods
+Because inputs are embedded independently, this model is a drop-in embedder for Mastra Memory and any `embedMany` caller. Documents are sent as a flat list with server-side auto-chunking (chunk size 32,000 tokens) so each input resolves to a single chunk. Queries skip auto-chunking, which the API does not allow for `inputType: 'query'`.
 
-```typescript
-// Embed a query
-const queryEmbedding = await contextual.embedQuery('search query');
-
-// Embed chunks from a single document
-const docEmbeddings = await contextual.embedDocumentChunks(['First paragraph...', 'Second paragraph...']);
-
-// Get embeddings grouped by document
-const grouped = await contextual.doEmbedGrouped({
-  values: [['chunk1', 'chunk2'], ['chunk3']],
-  inputType: 'document',
-});
-console.log(grouped.embeddingsByDocument); // [[[...], [...]], [[...]]]
-```
+Cross-input contextualization (embedding several chunks of the *same* document together so each vector reflects the others) is intentionally not used here, since generic callers pass unrelated texts. To use it, send one document's chunks together in your own request.
 
 ## Available Models
 
@@ -188,6 +176,8 @@ console.log(grouped.embeddingsByDocument); // [[[...], [...]], [[...]]]
 | `voyage-4-large`   | Best quality, highest batch capacity    | 256/512/1024/2048 | 120k         |
 | `voyage-4`         | Balanced quality/speed, high throughput | 256/512/1024/2048 | 320k         |
 | `voyage-4-lite`    | Maximum throughput                      | 256/512/1024/2048 | 1M           |
+| `voyage-4-nano`    | Smallest, open-weight                   | 256/512/1024/2048 | 1M           |
+| `voyage-code-4`    | Latest code retrieval                   | 256/512/1024/2048 | 120k         |
 | `voyage-3-large`   | Best quality, multilingual              | 256/512/1024/2048 | 120k         |
 | `voyage-3.5`       | Balanced quality/speed                  | 256/512/1024/2048 | 320k         |
 | `voyage-3.5-lite`  | Lowest latency/cost                     | 256/512/1024/2048 | 1M           |
@@ -204,10 +194,10 @@ console.log(grouped.embeddingsByDocument); // [[[...], [...]], [[...]]]
 
 ### Contextualized Models
 
-| Model              | Use Case                                             |
-| ------------------ | ---------------------------------------------------- |
-| `voyage-context-4` | Chunks with document context, best quality (preview) |
-| `voyage-context-3` | Chunks with document context                         |
+| Model              | Use Case                                              |
+| ------------------ | ----------------------------------------------------- |
+| `voyage-context-4` | Document-aware embeddings, best quality (recommended) |
+| `voyage-context-3` | Document-aware embeddings (previous generation)       |
 
 ### Reranker Models
 
@@ -332,6 +322,8 @@ type VoyageTextModel =
   | 'voyage-4-large'
   | 'voyage-4'
   | 'voyage-4-lite'
+  | 'voyage-4-nano'
+  | 'voyage-code-4'
   | 'voyage-3-large'
   | 'voyage-3.5'
   | 'voyage-3.5-lite'

@@ -111,6 +111,8 @@ describeWithApiKey('VoyageAI Integration Tests', () => {
       expect(voyage.v4large.modelId).toBe('voyage-4-large');
       expect(voyage.v4.modelId).toBe('voyage-4');
       expect(voyage.v4lite.modelId).toBe('voyage-4-lite');
+      expect(voyage.v4nano.modelId).toBe('voyage-4-nano');
+      expect(voyage.code4.modelId).toBe('voyage-code-4');
 
       // Voyage-3 series
       expect(voyage.large.modelId).toBe('voyage-3-large');
@@ -182,26 +184,30 @@ describeWithApiKey('VoyageAI Integration Tests', () => {
       expect(model.modelId).toBe('voyage-context-3');
     });
 
-    it('should embed document chunks with context', async () => {
+    it('should embed documents independently (one embedding per input)', async () => {
       const model = voyageContextualizedEmbedding('voyage-context-3');
 
       const result = await model.doEmbed({
-        values: [['This is the first paragraph of document one.', 'This is the second paragraph.']],
-        inputType: 'document',
+        values: ['This is the first document.', 'This is the second document.'],
       });
 
-      // Should return 2 embeddings (one per chunk)
+      // Each input string is embedded as its own document
       expect(result.embeddings).toHaveLength(2);
-      expect(result.chunkCounts).toEqual([2]);
+      expect(result.embeddings[0]!.length).toBe(1024);
+      expect(result.embeddings[1]!.length).toBe(1024);
     });
 
     it('should embed query with contextualized model', async () => {
       const model = voyageContextualizedEmbedding('voyage-context-3');
 
-      const embedding = await model.embedQuery('What is the main topic?');
+      const result = await model.doEmbed({
+        values: ['What is the main topic?'],
+        providerOptions: { voyage: { inputType: 'query' } },
+      });
 
-      expect(embedding).toBeInstanceOf(Array);
-      expect(embedding.length).toBe(1024);
+      expect(result.embeddings).toHaveLength(1);
+      expect(result.embeddings[0]).toBeInstanceOf(Array);
+      expect(result.embeddings[0]!.length).toBe(1024);
     });
 
     it('should support custom dimensions for contextualized embeddings', async () => {
@@ -211,8 +217,7 @@ describeWithApiKey('VoyageAI Integration Tests', () => {
       });
 
       const result = await model.doEmbed({
-        values: [['Single chunk for testing']],
-        inputType: 'document',
+        values: ['Single document for testing'],
       });
 
       expect(result.embeddings[0]!.length).toBe(512);
@@ -223,17 +228,14 @@ describeWithApiKey('VoyageAI Integration Tests', () => {
       expect(model.modelId).toBe('voyage-context-4');
     });
 
-    it('should embed document chunks with voyage-context-4', async () => {
+    it('should embed documents independently with voyage-context-4', async () => {
       const model = voyageContextualizedEmbedding('voyage-context-4');
 
       const result = await model.doEmbed({
-        values: [['This is the first paragraph of document one.', 'This is the second paragraph.']],
-        inputType: 'document',
+        values: ['This is the first document.', 'This is the second document.'],
       });
 
-      // Should return 2 embeddings (one per chunk)
       expect(result.embeddings).toHaveLength(2);
-      expect(result.chunkCounts).toEqual([2]);
       // Default dimension is 1024
       expect(result.embeddings[0]!.length).toBe(1024);
     });
@@ -245,8 +247,7 @@ describeWithApiKey('VoyageAI Integration Tests', () => {
       });
 
       const result = await model.doEmbed({
-        values: [['Single chunk for testing']],
-        inputType: 'document',
+        values: ['Single document for testing'],
       });
 
       expect(result.embeddings[0]!.length).toBe(512);

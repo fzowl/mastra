@@ -5,6 +5,7 @@
  */
 
 import { VoyageAIClient } from 'voyageai';
+import { createTokenAwareBatches } from './batching';
 import type { VoyageTextModel, VoyageTextEmbeddingConfig, VoyageProviderOptions, VoyageInputType } from './types';
 import { TEXT_MODEL_INFO } from './types';
 
@@ -14,46 +15,6 @@ import { TEXT_MODEL_INFO } from './types';
 function toSdkInputType(inputType: VoyageInputType | undefined): 'query' | 'document' | undefined {
   if (inputType === null) return undefined;
   return inputType;
-}
-
-/**
- * Split texts into batches that respect the model's maxInputTokens limit.
- * Uses the SDK's tokenize() method for accurate token counting.
- */
-async function createTokenAwareBatches(
-  client: VoyageAIClient,
-  model: string,
-  texts: string[],
-  maxTokens: number,
-  maxInputsPerBatch: number,
-): Promise<string[][]> {
-  const tokenResults = await client.tokenize(texts, model);
-
-  const batches: string[][] = [];
-  let currentBatch: string[] = [];
-  let currentTokens = 0;
-
-  for (let i = 0; i < texts.length; i++) {
-    const tokenCount = tokenResults[i]?.ids.length ?? 0;
-
-    if (
-      currentBatch.length > 0 &&
-      (currentTokens + tokenCount > maxTokens || currentBatch.length >= maxInputsPerBatch)
-    ) {
-      batches.push(currentBatch);
-      currentBatch = [];
-      currentTokens = 0;
-    }
-
-    currentBatch.push(texts[i]!);
-    currentTokens += tokenCount;
-  }
-
-  if (currentBatch.length > 0) {
-    batches.push(currentBatch);
-  }
-
-  return batches;
 }
 
 /**

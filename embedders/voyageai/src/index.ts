@@ -50,13 +50,16 @@
  * ```typescript
  * import { voyageContextualizedEmbedding } from '@mastra/voyageai';
  *
- * const contextual = voyageContextualizedEmbedding('voyage-context-3');
+ * // Each input string is embedded independently as its own document.
+ * const contextual = voyageContextualizedEmbedding('voyage-context-4');
  * const result = await contextual.doEmbed({
- *   values: [
- *     ['Doc 1 chunk 1...', 'Doc 1 chunk 2...'],
- *     ['Doc 2 chunk 1...']
- *   ],
- *   inputType: 'document',
+ *   values: ['First document...', 'Second document...'],
+ * });
+ *
+ * // Embed a query for retrieval
+ * const query = await contextual.doEmbed({
+ *   values: ['What was the revenue?'],
+ *   providerOptions: { voyage: { inputType: 'query' } },
  * });
  * ```
  */
@@ -77,7 +80,12 @@ export {
 
 export { VoyageMultimodalEmbeddingModel, createVoyageMultimodalEmbedding } from './multimodal-embedding';
 
-export { VoyageContextualizedEmbeddingModel, createVoyageContextualizedEmbedding } from './contextualized-embedding';
+export {
+  VoyageContextualizedEmbeddingModelV2,
+  VoyageContextualizedEmbeddingModelV3,
+  createVoyageContextualizedEmbedding,
+  createVoyageContextualizedEmbeddingV2,
+} from './contextualized-embedding';
 
 export { VoyageRelevanceScorer, createVoyageReranker, voyageReranker, type RelevanceScoreProvider } from './reranker';
 
@@ -89,7 +97,11 @@ import {
   VoyageTextEmbeddingModelV2,
 } from './text-embedding';
 import { createVoyageMultimodalEmbedding, VoyageMultimodalEmbeddingModel } from './multimodal-embedding';
-import { createVoyageContextualizedEmbedding, VoyageContextualizedEmbeddingModel } from './contextualized-embedding';
+import {
+  createVoyageContextualizedEmbedding,
+  createVoyageContextualizedEmbeddingV2,
+  VoyageContextualizedEmbeddingModelV3,
+} from './contextualized-embedding';
 import { createVoyageReranker, VoyageRelevanceScorer } from './reranker';
 
 // ============================================================================
@@ -121,12 +133,20 @@ export const voyageEmbeddingV2 = createVoyageTextEmbeddingV2;
 export const voyageMultimodalEmbedding = createVoyageMultimodalEmbedding;
 
 /**
- * Create a VoyageAI contextualized chunk embedding model
+ * Create a VoyageAI contextualized chunk embedding model (V3)
  *
  * @param config - Model name or full configuration
- * @returns VoyageContextualizedEmbeddingModel instance
+ * @returns EmbeddingModelV3 compatible model
  */
 export const voyageContextualizedEmbedding = createVoyageContextualizedEmbedding;
+
+/**
+ * Create a VoyageAI contextualized chunk embedding model (V2)
+ *
+ * @param config - Model name or full configuration
+ * @returns EmbeddingModelV2 compatible model
+ */
+export const voyageContextualizedEmbeddingV2 = createVoyageContextualizedEmbeddingV2;
 
 // ============================================================================
 // Convenience Object with Pre-configured Models
@@ -154,10 +174,9 @@ export const voyageContextualizedEmbedding = createVoyageContextualizedEmbedding
  *   values: [{ content: [{ type: 'text', text: 'Hello' }] }]
  * });
  *
- * // Contextualized
+ * // Contextualized (each input embedded independently)
  * const contextResult = await voyage.contextualized.doEmbed({
- *   values: [['chunk1', 'chunk2']],
- *   inputType: 'document',
+ *   values: ['document one', 'document two'],
  * });
  * ```
  */
@@ -166,6 +185,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   v4large: VoyageTextEmbeddingModelV3;
   v4: VoyageTextEmbeddingModelV3;
   v4lite: VoyageTextEmbeddingModelV3;
+  v4nano: VoyageTextEmbeddingModelV3;
+  code4: VoyageTextEmbeddingModelV3;
 
   // Text models (V3) - voyage-3 series
   large: VoyageTextEmbeddingModelV3;
@@ -179,6 +200,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   v4largeV2: VoyageTextEmbeddingModelV2;
   v4V2: VoyageTextEmbeddingModelV2;
   v4liteV2: VoyageTextEmbeddingModelV2;
+  v4nanoV2: VoyageTextEmbeddingModelV2;
+  code4V2: VoyageTextEmbeddingModelV2;
 
   // Text models (V2 for backward compatibility) - voyage-3 series
   largeV2: VoyageTextEmbeddingModelV2;
@@ -194,9 +217,9 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   multimodal35: VoyageMultimodalEmbeddingModel;
 
   // Contextualized model
-  contextualized: VoyageContextualizedEmbeddingModel;
-  context3: VoyageContextualizedEmbeddingModel;
-  context4: VoyageContextualizedEmbeddingModel;
+  contextualized: VoyageContextualizedEmbeddingModelV3;
+  context3: VoyageContextualizedEmbeddingModelV3;
+  context4: VoyageContextualizedEmbeddingModelV3;
 
   // Reranker models
   reranker: VoyageRelevanceScorer;
@@ -250,6 +273,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     v4large: { get: () => lazy('v4large', () => createVoyageTextEmbedding('voyage-4-large')) },
     v4: { get: () => lazy('v4', () => createVoyageTextEmbedding('voyage-4')) },
     v4lite: { get: () => lazy('v4lite', () => createVoyageTextEmbedding('voyage-4-lite')) },
+    v4nano: { get: () => lazy('v4nano', () => createVoyageTextEmbedding('voyage-4-nano')) },
+    code4: { get: () => lazy('code4', () => createVoyageTextEmbedding('voyage-code-4')) },
     // Text models (V3) - voyage-3 series
     large: { get: () => lazy('large', () => createVoyageTextEmbedding('voyage-3-large')) },
     v35: { get: () => lazy('v35', () => createVoyageTextEmbedding('voyage-3.5')) },
@@ -261,6 +286,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     v4largeV2: { get: () => lazy('v4largeV2', () => createVoyageTextEmbeddingV2('voyage-4-large')) },
     v4V2: { get: () => lazy('v4V2', () => createVoyageTextEmbeddingV2('voyage-4')) },
     v4liteV2: { get: () => lazy('v4liteV2', () => createVoyageTextEmbeddingV2('voyage-4-lite')) },
+    v4nanoV2: { get: () => lazy('v4nanoV2', () => createVoyageTextEmbeddingV2('voyage-4-nano')) },
+    code4V2: { get: () => lazy('code4V2', () => createVoyageTextEmbeddingV2('voyage-code-4')) },
     // Text models (V2) - voyage-3 series
     largeV2: { get: () => lazy('largeV2', () => createVoyageTextEmbeddingV2('voyage-3-large')) },
     v35V2: { get: () => lazy('v35V2', () => createVoyageTextEmbeddingV2('voyage-3.5')) },
