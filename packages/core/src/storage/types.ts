@@ -436,6 +436,22 @@ export interface StorageConditionalVariant<T> {
 export type StorageConditionalField<T> = T | StorageConditionalVariant<T>[];
 
 /**
+ * Serializable subset of `AgentDurableOption` that can be persisted on a stored
+ * agent version snapshot. `cache` and `pubsub` are live runtime objects and are
+ * intentionally excluded — they are inherited from the Mastra instance at
+ * hydration time. `id`/`name` are excluded because a stored agent's durable
+ * wrapper must keep the agent's own id/name to stay addressable.
+ */
+export type StorageDurableConfig =
+  | boolean
+  | {
+      /** Maximum steps for the durable agentic loop. */
+      maxSteps?: number;
+      /** Auto-cleanup timer for durable stream state (ms). `0` disables cleanup. */
+      cleanupTimeoutMs?: number;
+    };
+
+/**
  * Agent version snapshot type containing ALL agent configuration fields.
  * These fields live exclusively in version snapshot rows, not on the agent record.
  */
@@ -486,6 +502,12 @@ export interface StorageAgentSnapshotType {
   skills?: StorageConditionalField<Record<string, StorageSkillConfig>>;
   /** Skill format for system message injection (default: 'xml') */
   skillsFormat?: 'xml' | 'json' | 'markdown';
+  /**
+   * Opt the hydrated agent into durable execution. Serializable subset of
+   * `AgentDurableOption` — `cache`/`pubsub` are live objects and stay code-level.
+   * Not conditional: durability is decided at registration time, not per request.
+   */
+  durable?: StorageDurableConfig;
   /** JSON Schema for validating request context values. Stored as JSON Schema since Zod is not serializable. */
   requestContextSchema?: Record<string, unknown>;
 }
@@ -2216,6 +2238,31 @@ export interface UpdateWorkflowStateOptions {
     spanId?: string;
     parentSpanId?: string;
   };
+  /**
+   * Optional compare-and-set guard. When provided, the update is applied only if the
+   * persisted snapshot's status matches one of these values. Otherwise the update is a
+   * no-op and `updateWorkflowState` resolves to `undefined`.
+   *
+   * This is only enforced atomically by stores that report `supportsConcurrentUpdates()`,
+   * because those stores load and write the snapshot inside a single critical section.
+   * Stores without concurrent update support apply it on a best-effort basis.
+   *
+   * This field is a guard only: it is never merged into the persisted snapshot.
+   */
+  expectedStatus?: WorkflowRunStatus | WorkflowRunStatus[];
+}
+
+/**
+ * Returns true when a snapshot's current status satisfies an `expectedStatus` guard.
+ * Stores call this inside their `updateWorkflowState` critical section.
+ */
+export function matchesExpectedWorkflowStatus(
+  currentStatus: WorkflowRunStatus | undefined,
+  expectedStatus: UpdateWorkflowStateOptions['expectedStatus'],
+): boolean {
+  if (expectedStatus === undefined) return true;
+  const expected = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+  return currentStatus !== undefined && expected.includes(currentStatus);
 }
 
 function unwrapSchema(schema: z.ZodTypeAny): { base: z.ZodTypeAny; nullable: boolean } {

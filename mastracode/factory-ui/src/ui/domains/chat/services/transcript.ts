@@ -1,8 +1,9 @@
-import type { AgentControllerEvent, AgentControllerTaskSnapshot, AgentControllerOMProgress } from '@mastra/client-js';
+import type { AgentControllerEvent, AgentControllerTaskSnapshot } from '@mastra/client-js';
 import { isKnownAgentControllerEvent } from '@mastra/client-js';
-import type { MastraDBMessage, MastraMessagePart } from '@mastra/core/agent-controller';
+import type { MastraDBMessage, MastraMessagePart, TokenUsage } from '@mastra/core/agent-controller';
 
 import { stripAnsi } from './ansi';
+import type { OMBudgets } from './runtime';
 
 /**
  * Transcript model + reducer.
@@ -116,15 +117,6 @@ export type TimelineEntry =
   | NotificationSummaryEntry
   | SubagentEntry;
 
-/** Token usage snapshot from usage_update events. */
-export interface UsageSnapshot {
-  promptTokens?: number;
-  completionTokens?: number;
-  totalTokens?: number;
-  reasoningTokens?: number;
-  [key: string]: unknown;
-}
-
 /** OM (observational memory) status. */
 export type OMPhase = 'idle' | 'observing' | 'reflecting' | 'buffering';
 
@@ -152,15 +144,13 @@ export interface TranscriptState {
   /** Current task list from task_updated events. */
   tasks: AgentControllerTaskSnapshot[];
   /** Accumulated token usage. */
-  usage?: UsageSnapshot;
+  usage?: TokenUsage;
   /** Number of queued follow-up messages. */
   followUpCount: number;
   /** OM progress for the status line (msg/mem budgets), from display_state_changed. */
-  omProgress?: AgentControllerOMProgress;
+  omProgress?: OMBudgets;
   /** Observational memory phase. */
   omPhase: OMPhase;
-  /** Whether the workspace is ready. */
-  workspaceReady?: boolean;
   /** Latest goal evaluation. */
   goal?: GoalSnapshot;
   /** Current tokens/sec throughput (0 when idle). */
@@ -203,8 +193,8 @@ type Action =
   | {
       type: 'reset';
       threadId?: string;
-      omProgress?: AgentControllerOMProgress;
-      usage?: UsageSnapshot;
+      omProgress?: OMBudgets;
+      usage?: TokenUsage;
     };
 
 /**
@@ -283,7 +273,7 @@ function applyEvent(state: TranscriptState, event: AgentControllerEvent): Transc
 
     case 'message_start':
     case 'message_update': {
-      const message = event.message as MastraDBMessage;
+      const message = event.message;
       const next = upsertMessage(state, message, true);
       if (message.role !== 'assistant') return next;
       // Only streamed assistant content opens the decode window — empty or
@@ -443,14 +433,14 @@ function applyEvent(state: TranscriptState, event: AgentControllerEvent): Transc
 
     // Usage tracking.
     case 'usage_update': {
-      const usageSnap = event.usage as UsageSnapshot;
+      const usageSnap = event.usage;
       const now = Date.now();
       // usage_update fires at step-finish and carries the completion (and any
       // reasoning) tokens generated during this step. Measure tokens/sec over the
       // decode window only — from the step's first content delta (_decodeStartedAt)
       // to now — which excludes TTFT and inter-step tool/scheduling time. Smooth
       // with an exponential moving average (α=0.3) for a stable readout.
-      const stepTokens = (usageSnap.completionTokens ?? 0) + (usageSnap.reasoningTokens ?? 0);
+      const stepTokens = usageSnap.completionTokens + (usageSnap.reasoningTokens ?? 0);
       let tps = state.tokensPerSec;
       if (state._decodeStartedAt > 0 && stepTokens > 0) {
         const decodeSec = Math.max((now - state._decodeStartedAt) / 1000, 0.001);
@@ -477,7 +467,7 @@ function applyEvent(state: TranscriptState, event: AgentControllerEvent): Transc
       return {
         ...state,
         omProgress: ds.omProgress ?? state.omProgress,
-        usage: (ds.tokenUsage as UsageSnapshot | undefined) ?? state.usage,
+        usage: ds.tokenUsage ?? state.usage,
       };
     }
 
@@ -500,16 +490,15 @@ function applyEvent(state: TranscriptState, event: AgentControllerEvent): Transc
       return { ...state, omPhase: 'buffering' };
     case 'om_buffering_end':
     case 'om_buffering_failed':
-      return { ...state, omPhase: 'idle' };
     case 'om_activation':
-      if (!event.enabled) return { ...state, omPhase: 'idle' };
-      return state;
+      return { ...state, omPhase: 'idle' };
 
     // Workspace lifecycle.
-    case 'workspace_ready':
-      return { ...state, workspaceReady: true };
     case 'workspace_error':
-      return { ...state, workspaceReady: false };
+      return pushNotice(state, 'error', `Workspace: ${event.error.message}`);
+    case 'workspace_status_changed':
+      if (event.status !== 'error' || !event.error) return state;
+      return pushNotice(state, 'error', `Workspace: ${event.error.message}`);
 
     // Notices.
     case 'info':
@@ -552,8 +541,8 @@ export function createInitialTranscript({
 }: {
   messages?: MastraDBMessage[];
   threadId?: string;
-  omProgress?: AgentControllerOMProgress;
-  usage?: UsageSnapshot;
+  omProgress?: OMBudgets;
+  usage?: TokenUsage;
 } = {}): TranscriptState {
   return {
     ...initialTranscript,
@@ -611,8 +600,8 @@ function persistedSuspensionPrompts(message: MastraDBMessage): SuspensionPrompt[
 function mergeServerWindow(state: TranscriptState, messages: MastraDBMessage[]): TranscriptState {
   if (messages.length === 0) return state;
 
-  const reconciled = reconcileToolResults(adoptCoveringWindowCopies(state, messages), messages);
-  const onScreenIndex = claimOnScreenEntries(reconciled.entries, messages);
+  const onScreenIndex = claimOnScreenEntries(state.entries, messages);
+  const reconciled = reconcileToolResults(adoptCoveringWindowCopies(state, onScreenIndex), messages);
 
   if (messages.every(message => onScreenIndex.has(message))) return reconciled;
 
@@ -666,13 +655,7 @@ function claimOnScreenEntries(entries: TimelineEntry[], messages: MastraDBMessag
       if (!candidate) continue;
       const sameMessage =
         candidate.entry.id === message.id || toolCallIds.some(toolCallId => candidate.toolCallIds.has(toolCallId));
-      // Whole text parts have to match: a window copy that extends what an SSE
-      // gap left on screen still needs inserting for its tail to appear at all.
-      const alreadyDrawn =
-        toolCallIds.length === 0 &&
-        texts.length > 0 &&
-        candidate.entry.message.role === displayed.role &&
-        texts.every(text => candidate.texts.has(text));
+      const alreadyDrawn = redrawsEntry(candidate, displayed, texts, toolCallIds);
 
       const claimsIdentity = sameMessage && !claimedEntries.has(index);
       const claimsText = alreadyDrawn && !claimedTexts.has(textClaim(index));
@@ -686,6 +669,24 @@ function claimOnScreenEntries(entries: TimelineEntry[], messages: MastraDBMessag
   }
 
   return anchors;
+}
+
+/**
+ * True when the window copy is the entry already drawn, seen from another
+ * identity. A copy carrying tool calls must also extend the entry positionally
+ * — that prefix tells a re-identified turn apart from a different one repeating
+ * the same words, and its tools then land through adoption instead of a second,
+ * text-duplicating entry.
+ */
+function redrawsEntry(
+  candidate: OnScreenMessage,
+  displayed: MastraDBMessage,
+  texts: string[],
+  toolCallIds: string[],
+): boolean {
+  if (texts.length === 0 || candidate.entry.message.role !== displayed.role) return false;
+  if (!texts.every(text => candidate.texts.has(text))) return false;
+  return toolCallIds.length === 0 || windowCopyCovers(candidate.entry.message.content.parts, displayed.content.parts);
 }
 
 interface OnScreenMessage {
@@ -730,19 +731,17 @@ export function isTerminalInvocationState(state: ToolInvocationMessagePart['tool
  * only fires when nothing on screen would be lost; a live turn ahead of the
  * snapshot fails the prefix check and keeps its streamed parts.
  */
-function adoptCoveringWindowCopies(state: TranscriptState, messages: MastraDBMessage[]): TranscriptState {
+function adoptCoveringWindowCopies(state: TranscriptState, anchors: Map<MastraDBMessage, number>): TranscriptState {
+  const copyByEntry = new Map<number, MastraDBMessage>();
+  for (const [message, index] of anchors) {
+    if (message.role === 'assistant') copyByEntry.set(index, message);
+  }
+
   let changed = false;
-  const entries = state.entries.map(entry => {
-    if (entry.kind !== 'message' || entry.message.role !== 'assistant') return entry;
+  const entries = state.entries.map((entry, index) => {
+    const copy = copyByEntry.get(index);
+    if (!copy || entry.kind !== 'message' || entry.message.role !== 'assistant') return entry;
     const onScreenParts = entry.message.content.parts;
-    const toolCallIds = new Set(toolCallIdsOf(onScreenParts));
-    const copy = messages.find(
-      message =>
-        message.role === 'assistant' &&
-        (message.id === entry.id ||
-          (toolCallIds.size > 0 && toolCallIdsOf(message.content.parts).some(id => toolCallIds.has(id)))),
-    );
-    if (!copy) return entry;
     const covers = windowCopyCovers(onScreenParts, copy.content.parts);
     const identical = covers && windowCopyCovers(copy.content.parts, onScreenParts);
     if (!covers || identical) return entry;
@@ -919,17 +918,25 @@ function toMessageEntry(
   };
 }
 
+/**
+ * Where an assistant message the timeline has never seen under this id belongs.
+ * A live turn the message extends part for part is that turn re-identified —
+ * rewrite it, or its tool parts migrate to the copy and strand the old text
+ * beside it. Only the live turn is a candidate; sealed entries are history.
+ */
+function indexOfSameTurn(entries: TimelineEntry[], message: MastraDBMessage): number {
+  const index = latestAssistantIndex(entries);
+  const entry = entries[index];
+  if (entry?.kind !== 'message') return -1;
+  if (entry.id.startsWith('assistant-tools-')) return index;
+  return entry.streaming && windowCopyCovers(entry.message.content.parts, message.content.parts) ? index : -1;
+}
+
 function upsertMessage(state: TranscriptState, message: MastraDBMessage, streaming: boolean): TranscriptState {
   if (message.role !== 'assistant' && message.role !== 'signal') return state;
   const entries = [...state.entries];
   let idx = entries.findIndex(e => e.kind === 'message' && e.id === message.id);
-  if (message.role === 'assistant' && idx === -1) {
-    const latestIdx = latestAssistantIndex(entries);
-    const latest = latestIdx === -1 ? undefined : entries[latestIdx];
-    if (latest?.kind === 'message' && latest.message.role === 'assistant' && latest.id.startsWith('assistant-tools-')) {
-      idx = latestIdx;
-    }
-  }
+  if (message.role === 'assistant' && idx === -1) idx = indexOfSameTurn(entries, message);
   const prev = idx !== -1 ? entries[idx] : undefined;
   const prevEntry = prev?.kind === 'message' ? prev : undefined;
   const nextMessage = message.role === 'assistant' ? preserveRuntimeToolParts(message, prevEntry?.message) : message;

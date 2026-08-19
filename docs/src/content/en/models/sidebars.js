@@ -40,6 +40,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'gateways/merge-gateway',
+          label: 'Merge Gateway',
+        },
+        {
+          type: 'doc',
           id: 'gateways/neon',
           label: 'Neon',
         },
@@ -191,6 +196,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'providers/arcee',
+          label: 'Arcee',
+        },
+        {
+          type: 'doc',
           id: 'providers/atomic-chat',
           label: 'Atomic Chat',
         },
@@ -336,6 +346,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'providers/echo',
+          label: 'Echo',
+        },
+        {
+          type: 'doc',
           id: 'providers/edenai',
           label: 'Eden AI',
         },
@@ -476,6 +491,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'providers/kosmik',
+          label: 'Kosmik Compute',
+        },
+        {
+          type: 'doc',
           id: 'providers/kuae-cloud-coding-plan',
           label: 'KUAE Cloud Coding Plan',
         },
@@ -523,11 +543,6 @@ const sidebars = {
           type: 'doc',
           id: 'providers/meganova',
           label: 'Meganova',
-        },
-        {
-          type: 'doc',
-          id: 'providers/merge-gateway',
-          label: 'Merge Gateway',
         },
         {
           type: 'doc',
@@ -756,7 +771,7 @@ const sidebars = {
         },
         {
           type: 'doc',
-          id: 'providers/scx',
+          id: 'providers/scx-ai',
           label: 'SCX.ai',
         },
         {

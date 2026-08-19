@@ -17,6 +17,7 @@ import type { CallSettings, ModelMessage, StepResult, ToolSet, TypedToolCall, UI
 import type { AIV5ResponseMessage } from '../agent/message-list';
 import type { AIV5Type, MastraDBMessage } from '../agent/message-list/types';
 import type { StructuredOutputOptions } from '../agent/types';
+import type { ModelConfigModelSettings } from '../llm/model/model-settings';
 import type { MastraLanguageModel, SharedProviderOptions } from '../llm/model/shared.types';
 import type { ScorerResult } from '../loop';
 import type { ClientObservabilityCarrier, ObservabilityContext } from '../observability';
@@ -1074,7 +1075,7 @@ export type ModelManagerModelConfig = {
   maxRetries: number;
   id: string;
   headers?: Record<string, string>;
-  modelSettings?: Omit<CallSettings, 'abortSignal' | 'maxRetries' | 'headers'>;
+  modelSettings?: ModelConfigModelSettings;
   providerOptions?: SharedProviderOptions;
 };
 
@@ -1147,6 +1148,14 @@ export type MastraModelOutputOptions<OUTPUT = undefined> = {
    * processor processing (isLLMExecutionStep) AND final promise resolution.
    */
   resolveFinalPromises?: boolean;
+  /**
+   * When true, `error` chunks and `finish` chunks with stepResult.reason
+   * 'error' bypass the per-chunk output processor pass. These chunks describe a
+   * single model call that the caller may still recover from via an error
+   * processor retry or a fallback model, so the caller becomes responsible for
+   * running output processors on the error once recovery has been ruled out.
+   */
+  deferErrorChunks?: boolean;
   returnScorerData?: boolean;
   processorStates?: Map<string, any>;
   requestContext?: RequestContext;
