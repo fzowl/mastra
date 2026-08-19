@@ -45,6 +45,21 @@ describe('createTokenAwareBatches', () => {
     expect(batches).toEqual([['a', 'b'], ['c', 'd'], ['e']]);
   });
 
+  it('falls back to a character-based estimate when tokenize is unavailable', async () => {
+    // Simulate the local tokenizer dependency being absent.
+    const tokenize = vi.fn(() => Promise.reject(new Error('Tokenizer requires @huggingface/transformers')));
+    const client = { tokenize } as any;
+    // ~4 chars/token: a 400-char text estimates to 100 tokens, so with maxTokens
+    // = 150 two of them cannot share a batch.
+    const big = 'x'.repeat(400);
+    const small = 'y'.repeat(4); // ~1 token
+
+    const batches = await createTokenAwareBatches(client, 'voyage-3.5', [big, small, big], 150, 1000);
+
+    expect(tokenize).toHaveBeenCalledTimes(1);
+    expect(batches).toEqual([[big, small], [big]]);
+  });
+
   it('returns no batches for an empty input and does not call tokenize', async () => {
     const { client, tokenize } = makeClient([]);
 

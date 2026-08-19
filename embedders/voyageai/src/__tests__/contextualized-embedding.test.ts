@@ -178,6 +178,37 @@ describe('VoyageContextualizedEmbeddingModelV2', () => {
     expect(call.outputDtype).toBe('int8');
   });
 
+  describe('oversized inputs (server-side multi-chunk)', () => {
+    it('mean-pools chunk embeddings and warns instead of dropping chunks', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // One input that the server split into two chunks.
+      mockContextualizedEmbed.mockResolvedValue({
+        results: [{ index: 0, embeddings: [[0, 2, 4], [2, 4, 6]] }],
+      });
+
+      const model = new VoyageContextualizedEmbeddingModelV2({ model: 'voyage-context-4' });
+      const result = await model.doEmbed({ values: ['a very long document...'] });
+
+      // Still exactly one vector per input, the average of the two chunks.
+      expect(result.embeddings).toEqual([[1, 3, 5]]);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0]![0]).toContain('per-chunk window');
+
+      warnSpy.mockRestore();
+    });
+
+    it('does not warn when every input yields a single chunk', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockContextualizedEmbed.mockResolvedValue(responseFor([[0.1], [0.2]]));
+
+      const model = new VoyageContextualizedEmbeddingModelV2({ model: 'voyage-context-4' });
+      await model.doEmbed({ values: ['doc one', 'doc two'] });
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+  });
+
   it('splits into multiple requests when the token budget is exceeded', async () => {
     // Each input is 80000 tokens; the per-request budget is 120000, so two
     // inputs cannot share a request.

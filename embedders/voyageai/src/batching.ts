@@ -10,10 +10,37 @@
 import type { VoyageAIClient } from 'voyageai';
 
 /**
+ * Rough token estimate used when the SDK's local tokenizer is unavailable.
+ * ~4 characters per token is the common heuristic; batching only needs an
+ * estimate to decide where to split, not exact counts.
+ */
+function estimateTokens(text: string): number {
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+/**
+ * Count tokens per input, preferring the SDK's `tokenize()` for accuracy and
+ * falling back to a character-based estimate when it is unavailable.
+ *
+ * The SDK's `tokenize()` runs a local tokenizer that depends on the optional
+ * `@huggingface/transformers` package; if it (or any other dependency) is not
+ * installed, we still need batching to work rather than throw on every request.
+ */
+async function countTokens(client: VoyageAIClient, model: string, texts: string[]): Promise<number[]> {
+  try {
+    const tokenResults = await client.tokenize(texts, model);
+    return texts.map((text, i) => tokenResults[i]?.ids.length ?? estimateTokens(text));
+  } catch {
+    return texts.map(estimateTokens);
+  }
+}
+
+/**
  * Split texts into batches that respect both the per-request token budget and
  * the per-request input-count cap.
  *
- * Uses the SDK's `tokenize()` for accurate per-input token counts. A single
+ * Uses the SDK's `tokenize()` for accurate per-input token counts, falling back
+ * to a character-based estimate when the local tokenizer is unavailable. A single
  * input whose token count already exceeds `maxTokens` is sent on its own rather
  * than being dropped, matching the behavior of the reference LangChain client.
  *
@@ -33,14 +60,14 @@ export async function createTokenAwareBatches(
 ): Promise<string[][]> {
   if (texts.length === 0) return [];
 
-  const tokenResults = await client.tokenize(texts, model);
+  const tokenCounts = await countTokens(client, model, texts);
 
   const batches: string[][] = [];
   let currentBatch: string[] = [];
   let currentTokens = 0;
 
   for (let i = 0; i < texts.length; i++) {
-    const tokenCount = tokenResults[i]?.ids.length ?? 0;
+    const tokenCount = tokenCounts[i] ?? 0;
 
     // Flush the current batch before adding this input if it would exceed either
     // limit. The `currentBatch.length > 0` guard ensures an oversized single

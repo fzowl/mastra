@@ -165,6 +165,8 @@ const query = await contextual.doEmbed({
 
 Because inputs are embedded independently, this model is a drop-in embedder for Mastra Memory and any `embedMany` caller. Documents are sent as a flat list with server-side auto-chunking (chunk size 32,000 tokens) so each input resolves to a single chunk. Queries skip auto-chunking, which the API does not allow for `inputType: 'query'`.
 
+An input longer than the 32,000-token per-chunk window is split into multiple chunks server-side. To keep the one-embedding-per-input contract, those chunk embeddings are averaged into a single vector and a warning is logged; pre-chunk or shorten such inputs if you need each chunk embedded separately.
+
 Cross-input contextualization (embedding several chunks of the *same* document together so each vector reflects the others) is intentionally not used here, since generic callers pass unrelated texts. To use it, send one document's chunks together in your own request.
 
 ## Available Models
