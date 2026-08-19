@@ -13,6 +13,8 @@ export type VoyageTextModel =
   | 'voyage-4-large'
   | 'voyage-4'
   | 'voyage-4-lite'
+  | 'voyage-4-nano'
+  | 'voyage-code-4'
   | 'voyage-3-large'
   | 'voyage-3.5'
   | 'voyage-3.5-lite'
@@ -202,6 +204,13 @@ export interface VoyageProviderOptions {
 export interface VoyageModelInfo {
   id: VoyageModel;
   maxInputTokens: number;
+  /**
+   * Maximum tokens allowed across a single API request. For plain text models
+   * this equals `maxInputTokens`; contextualized models cap per-input tokens
+   * (`maxInputTokens`, the per-chunk window) separately from the whole-request
+   * budget, so they set this explicitly.
+   */
+  maxRequestTokens?: number;
   defaultDimension: number;
   supportedDimensions?: VoyageOutputDimension[];
   isMultimodal: boolean;
@@ -228,6 +237,24 @@ export const TEXT_MODEL_INFO: Record<VoyageTextModel, Omit<VoyageModelInfo, 'id'
   },
   'voyage-4-lite': {
     maxInputTokens: 1000000,
+    defaultDimension: 1024,
+    supportedDimensions: [256, 512, 1024, 2048],
+    isMultimodal: false,
+    isContextualized: false,
+  },
+  // Open-weight nano model. Groups with the lite throughput tier for
+  // client-side batching; the docs don't publish a distinct per-request limit.
+  'voyage-4-nano': {
+    maxInputTokens: 1000000,
+    defaultDimension: 1024,
+    supportedDimensions: [256, 512, 1024, 2048],
+    isMultimodal: false,
+    isContextualized: false,
+  },
+  // Latest code-retrieval model. Uses the 120k per-request token budget shared
+  // by the code and large tiers.
+  'voyage-code-4': {
+    maxInputTokens: 120000,
     defaultDimension: 1024,
     supportedDimensions: [256, 512, 1024, 2048],
     isMultimodal: false,
@@ -298,7 +325,11 @@ export const MULTIMODAL_MODEL_INFO: Record<VoyageMultimodalModel, Omit<VoyageMod
  */
 export const CONTEXTUALIZED_MODEL_INFO: Record<VoyageContextModel, Omit<VoyageModelInfo, 'id'>> = {
   'voyage-context-3': {
+    // Per-chunk context window; also the auto-chunk size so each input <= this
+    // resolves to exactly one chunk.
     maxInputTokens: 32000,
+    // Whole-request token budget across all inputs (docs: max 120K tokens/request).
+    maxRequestTokens: 120000,
     defaultDimension: 1024,
     supportedDimensions: [256, 512, 1024, 2048],
     isMultimodal: false,
@@ -306,6 +337,7 @@ export const CONTEXTUALIZED_MODEL_INFO: Record<VoyageContextModel, Omit<VoyageMo
   },
   'voyage-context-4': {
     maxInputTokens: 32000,
+    maxRequestTokens: 120000,
     defaultDimension: 1024,
     supportedDimensions: [256, 512, 1024, 2048],
     isMultimodal: false,

@@ -2017,8 +2017,8 @@ importers:
   embedders/voyageai:
     dependencies:
       voyageai:
-        specifier: ^0.3.1
-        version: 0.3.1(encoding@0.1.13)(onnxruntime-node@1.26.0)
+        specifier: ^0.4.0
+        version: 0.4.0(encoding@0.1.13)(onnxruntime-node@1.26.0)
     devDependencies:
       '@internal/ai-sdk-v4':
         specifier: workspace:*
@@ -32098,8 +32098,8 @@ packages:
       jsdom:
         optional: true
 
-  voyageai@0.3.1:
-    resolution: {integrity: sha512-+f6gRsnuV7gi2tFvSFWTqERkZhox1VQCT0G+ALUDAwz75OpzpqaXgy6TSRkbrf6az9WZsXoAyDtplDksHLSbag==}
+  voyageai@0.4.0:
+    resolution: {integrity: sha512-RCWGknFqwbZORdRo7dHwBuZYeO64TnE+G30Qv4IGxq5jkMa2uK+eqMbOv/DhszcFUtE1iZjb4LqO9G/hj2EjxA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@huggingface/transformers': ^3.8.0
@@ -59343,7 +59343,7 @@ snapshots:
       - msw
     optional: true
 
-  voyageai@0.3.1(encoding@0.1.13)(onnxruntime-node@1.26.0):
+  voyageai@0.4.0(encoding@0.1.13)(onnxruntime-node@1.26.0):
     dependencies:
       node-fetch: 2.7.0(encoding@0.1.13)
     optionalDependencies:
