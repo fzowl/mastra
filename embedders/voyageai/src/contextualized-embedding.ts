@@ -27,19 +27,30 @@ function toSdkInputType(inputType: VoyageInputType | undefined): 'query' | 'docu
 }
 
 /**
- * VoyageAI Contextualized Chunk Embedding Model
+ * VoyageAI by MongoDB Contextualized Chunk Embedding Model
  *
  * Note: This does NOT implement EmbeddingModelV2<string> because contextualized
- * inputs have a different structure (string[][] vs string[]).
+ * inputs have a different structure (string[][] / string[] vs string[]).
  *
- * Input format: Nested lists where each inner list contains related chunks
- * from the same document. Example:
- * ```
- * [
- *   ['chunk1_from_doc1', 'chunk2_from_doc1'],  // Document 1 chunks
- *   ['chunk1_from_doc2', 'chunk2_from_doc2'],  // Document 2 chunks
- * ]
- * ```
+ * Input format: The official contextualized_embed API accepts
+ * `inputs: string[][] | string[]` (Union[List[List[str]], List[str]]), and both
+ * formats are supported here.
+ *
+ * - `string[][]` — nested lists where each inner list contains related chunks
+ *   from the same document:
+ *   ```
+ *   [
+ *     ['chunk1_from_doc1', 'chunk2_from_doc1'],  // Document 1 chunks
+ *     ['chunk1_from_doc2', 'chunk2_from_doc2'],  // Document 2 chunks
+ *   ]
+ *   ```
+ * - `string[]` — a flat list where each string is a single input (e.g. one
+ *   document or query per entry):
+ *   ```
+ *   ['document one text', 'document two text']
+ *   ```
+ *
+ * @see https://docs.voyageai.com/docs/contextualized-chunk-embeddings
  *
  * @example
  * ```typescript
@@ -88,7 +99,9 @@ export class VoyageContextualizedEmbeddingModel {
   /**
    * Generate contextualized embeddings for grouped chunks
    *
-   * @param args.values - Nested array where each inner array contains chunks from the same document
+   * @param args.values - Either a nested array where each inner array contains chunks from the
+   *   same document (`string[][]`), or a flat array where each string is a single input (`string[]`).
+   *   Both formats are accepted by the official contextualized_embed API.
    * @param args.inputType - 'query' for search queries, 'document' for content being indexed
    * @param args.outputDimension - Output embedding dimension (256, 512, 1024, or 2048)
    * @param args.outputDtype - Output data type
@@ -96,7 +109,7 @@ export class VoyageContextualizedEmbeddingModel {
    * @returns Object containing flattened embeddings array (one per chunk across all documents)
    */
   async doEmbed(args: {
-    values: string[][];
+    values: string[][] | string[];
     inputType?: VoyageInputType;
     outputDimension?: VoyageOutputDimension;
     outputDtype?: VoyageOutputDtype;
@@ -112,9 +125,12 @@ export class VoyageContextualizedEmbeddingModel {
       args.outputDimension ?? providerOptions?.voyage?.outputDimension ?? this.config.outputDimension;
     const outputDtype = args.outputDtype ?? providerOptions?.voyage?.outputDtype ?? this.config.outputDtype;
 
-    // Use the SDK's contextualizedEmbed method
+    // Use the SDK's contextualizedEmbed method.
+    // The official API accepts `inputs: string[][] | string[]`, but the SDK's generated
+    // request type is narrowed to `string[][]`; the cast keeps the flat `string[]` form
+    // (which the wire API supports) callable through the typed client.
     const response = await this.client.contextualizedEmbed({
-      inputs: values,
+      inputs: values as string[][],
       model: this.modelId,
       inputType: toSdkInputType(inputType),
       outputDimension: outputDimension,
@@ -148,7 +164,7 @@ export class VoyageContextualizedEmbeddingModel {
    * @returns Embeddings grouped by document
    */
   async doEmbedGrouped(args: {
-    values: string[][];
+    values: string[][] | string[];
     inputType?: VoyageInputType;
     outputDimension?: VoyageOutputDimension;
     outputDtype?: VoyageOutputDtype;
@@ -163,8 +179,9 @@ export class VoyageContextualizedEmbeddingModel {
       args.outputDimension ?? providerOptions?.voyage?.outputDimension ?? this.config.outputDimension;
     const outputDtype = args.outputDtype ?? providerOptions?.voyage?.outputDtype ?? this.config.outputDtype;
 
+    // See doEmbed for why the `inputs` value is cast to string[][].
     const response = await this.client.contextualizedEmbed({
-      inputs: values,
+      inputs: values as string[][],
       model: this.modelId,
       inputType: toSdkInputType(inputType),
       outputDimension: outputDimension,

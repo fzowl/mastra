@@ -1,5 +1,5 @@
 /**
- * @mastra/voyageai - VoyageAI Embeddings Integration for Mastra
+ * @mastra/voyageai - VoyageAI by MongoDB Embeddings Integration for Mastra
  *
  * Provides text, multimodal, and contextualized chunk embeddings using the official VoyageAI SDK.
  *
@@ -166,6 +166,7 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   v4large: VoyageTextEmbeddingModelV3;
   v4: VoyageTextEmbeddingModelV3;
   v4lite: VoyageTextEmbeddingModelV3;
+  code4: VoyageTextEmbeddingModelV3;
 
   // Text models (V3) - voyage-3 series
   large: VoyageTextEmbeddingModelV3;
@@ -179,6 +180,7 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   v4largeV2: VoyageTextEmbeddingModelV2;
   v4V2: VoyageTextEmbeddingModelV2;
   v4liteV2: VoyageTextEmbeddingModelV2;
+  code4V2: VoyageTextEmbeddingModelV2;
 
   // Text models (V2 for backward compatibility) - voyage-3 series
   largeV2: VoyageTextEmbeddingModelV2;
@@ -250,6 +252,7 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     v4large: { get: () => lazy('v4large', () => createVoyageTextEmbedding('voyage-4-large')) },
     v4: { get: () => lazy('v4', () => createVoyageTextEmbedding('voyage-4')) },
     v4lite: { get: () => lazy('v4lite', () => createVoyageTextEmbedding('voyage-4-lite')) },
+    code4: { get: () => lazy('code4', () => createVoyageTextEmbedding('voyage-code-4')) },
     // Text models (V3) - voyage-3 series
     large: { get: () => lazy('large', () => createVoyageTextEmbedding('voyage-3-large')) },
     v35: { get: () => lazy('v35', () => createVoyageTextEmbedding('voyage-3.5')) },
@@ -261,6 +264,7 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     v4largeV2: { get: () => lazy('v4largeV2', () => createVoyageTextEmbeddingV2('voyage-4-large')) },
     v4V2: { get: () => lazy('v4V2', () => createVoyageTextEmbeddingV2('voyage-4')) },
     v4liteV2: { get: () => lazy('v4liteV2', () => createVoyageTextEmbeddingV2('voyage-4-lite')) },
+    code4V2: { get: () => lazy('code4V2', () => createVoyageTextEmbeddingV2('voyage-code-4')) },
     // Text models (V2) - voyage-3 series
     largeV2: { get: () => lazy('largeV2', () => createVoyageTextEmbeddingV2('voyage-3-large')) },
     v35V2: { get: () => lazy('v35V2', () => createVoyageTextEmbeddingV2('voyage-3.5')) },
