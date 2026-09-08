@@ -7,12 +7,13 @@
 // ============================================================================
 
 /**
- * VoyageAI text embedding models
+ * VoyageAI by MongoDB text embedding models
  */
 export type VoyageTextModel =
   | 'voyage-4-large'
   | 'voyage-4'
   | 'voyage-4-lite'
+  | 'voyage-code-4'
   | 'voyage-3-large'
   | 'voyage-3.5'
   | 'voyage-3.5-lite'
@@ -157,7 +158,7 @@ export interface VoyageMultimodalEmbeddingConfig {
  * Configuration for VoyageAI contextualized chunk embedding models
  */
 export interface VoyageContextualizedEmbeddingConfig {
-  /** The model to use (voyage-context-3) */
+  /** The model to use (voyage-context-4 or voyage-context-3) */
   model: VoyageContextModel;
   /** API key (defaults to VOYAGE_API_KEY env var) */
   apiKey?: string;
@@ -228,6 +229,15 @@ export const TEXT_MODEL_INFO: Record<VoyageTextModel, Omit<VoyageModelInfo, 'id'
   },
   'voyage-4-lite': {
     maxInputTokens: 1000000,
+    defaultDimension: 1024,
+    supportedDimensions: [256, 512, 1024, 2048],
+    isMultimodal: false,
+    isContextualized: false,
+  },
+  'voyage-code-4': {
+    // Single-input context length is 32,000 tokens; used here as the token-aware
+    // batching limit for a single API call.
+    maxInputTokens: 32000,
     defaultDimension: 1024,
     supportedDimensions: [256, 512, 1024, 2048],
     isMultimodal: false,
