@@ -659,7 +659,7 @@ The weights control how different factors influence the final ranking:
 For semantic scoring to work properly during re-ranking, each result must include the text content in its `metadata.text` field.
 :::
 
-You can also use other relevance score providers like Voyage AI, Cohere, or ZeroEntropy:
+You can also use other relevance score providers like Voyage AI by MongoDB, Cohere, or ZeroEntropy:
 
 ```ts
 import { VoyageRelevanceScorer } from '@mastra/voyageai'
@@ -675,7 +675,7 @@ const relevanceProvider = new CohereRelevanceScorer('rerank-v3.5')
 const relevanceProvider = new ZeroEntropyRelevanceScorer('zerank-1')
 ```
 
-Voyage AI provides dedicated reranking models: `rerank-2.5` and `rerank-2.5-lite` both allow up to 32,000 tokens for the query and any single document combined, and up to 600,000 tokens across a request. `VoyageRelevanceScorer` reads `VOYAGE_API_KEY` from the environment, or accepts an `apiKey` in its config.
+Voyage AI by MongoDB provides dedicated reranking models. `rerank-2.5` and `rerank-2.5-lite` both allow up to 32,000 tokens for the query and any single document combined, and up to 600,000 tokens across a request. The newer `rerank-3` and `rerank-3-lite` models (in preview) also support a 32,000-token context. `VoyageRelevanceScorer` reads `VOYAGE_API_KEY` from the environment, or accepts an `apiKey` in its config.
 
 The re-ranked results combine vector similarity with semantic understanding to improve retrieval quality.
 

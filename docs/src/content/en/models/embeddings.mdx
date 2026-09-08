@@ -44,7 +44,7 @@ const embedder = new ModelRouterEmbeddingModel('google/gemini-embedding-001')
 
 ### VoyageAI
 
-VoyageAI provides specialized embedding models optimized for retrieval tasks. These models are available as standalone packages:
+VoyageAI by MongoDB provides specialized embedding models optimized for retrieval tasks. These models are available as standalone packages:
 
 ```bash npm2yarn
 npm install @mastra/voyageai
@@ -55,7 +55,9 @@ npm install @mastra/voyageai
 - `voyage-4-large` - 1024 dimensions (default), supports 256-2048 dimensions, best general-purpose and multilingual retrieval quality (120k max tokens per batch)
 - `voyage-4` - 1024 dimensions (default), supports 256-2048 dimensions, optimized for general-purpose and multilingual retrieval (320k max tokens per batch)
 - `voyage-4-lite` - 1024 dimensions (default), supports 256-2048 dimensions, optimized for latency and cost (1M max tokens per batch)
-- `voyage-code-3` - 1024 dimensions (default), supports 256-2048 dimensions, optimized for code retrieval
+- `voyage-4-nano` - 1024 dimensions (default), supports 256-2048 dimensions, smallest open-weight model (1M max tokens per batch)
+- `voyage-code-4` - 1024 dimensions (default), supports 256-2048 dimensions, latest model optimized for code retrieval (120k max tokens per batch)
+- `voyage-code-3` - 1024 dimensions (default), supports 256-2048 dimensions, optimized for code retrieval (previous generation)
 - `voyage-finance-2` - 1024 dimensions, optimized for finance retrieval and RAG
 - `voyage-law-2` - 1024 dimensions, optimized for legal retrieval and RAG (16k context)
 - `voyage-3-large` - 1024 dimensions (default), supports 256-2048 dimensions (previous generation)

@@ -166,6 +166,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   v4large: VoyageTextEmbeddingModelV3;
   v4: VoyageTextEmbeddingModelV3;
   v4lite: VoyageTextEmbeddingModelV3;
+  v4nano: VoyageTextEmbeddingModelV3;
+  code4: VoyageTextEmbeddingModelV3;
 
   // Text models (V3) - voyage-3 series
   large: VoyageTextEmbeddingModelV3;
@@ -179,6 +181,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
   v4largeV2: VoyageTextEmbeddingModelV2;
   v4V2: VoyageTextEmbeddingModelV2;
   v4liteV2: VoyageTextEmbeddingModelV2;
+  v4nanoV2: VoyageTextEmbeddingModelV2;
+  code4V2: VoyageTextEmbeddingModelV2;
 
   // Text models (V2 for backward compatibility) - voyage-3 series
   largeV2: VoyageTextEmbeddingModelV2;
@@ -200,6 +204,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
 
   // Reranker models
   reranker: VoyageRelevanceScorer;
+  reranker3: VoyageRelevanceScorer;
+  reranker3lite: VoyageRelevanceScorer;
   reranker25: VoyageRelevanceScorer;
   reranker25lite: VoyageRelevanceScorer;
   reranker2: VoyageRelevanceScorer;
@@ -250,6 +256,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     v4large: { get: () => lazy('v4large', () => createVoyageTextEmbedding('voyage-4-large')) },
     v4: { get: () => lazy('v4', () => createVoyageTextEmbedding('voyage-4')) },
     v4lite: { get: () => lazy('v4lite', () => createVoyageTextEmbedding('voyage-4-lite')) },
+    v4nano: { get: () => lazy('v4nano', () => createVoyageTextEmbedding('voyage-4-nano')) },
+    code4: { get: () => lazy('code4', () => createVoyageTextEmbedding('voyage-code-4')) },
     // Text models (V3) - voyage-3 series
     large: { get: () => lazy('large', () => createVoyageTextEmbedding('voyage-3-large')) },
     v35: { get: () => lazy('v35', () => createVoyageTextEmbedding('voyage-3.5')) },
@@ -261,6 +269,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     v4largeV2: { get: () => lazy('v4largeV2', () => createVoyageTextEmbeddingV2('voyage-4-large')) },
     v4V2: { get: () => lazy('v4V2', () => createVoyageTextEmbeddingV2('voyage-4')) },
     v4liteV2: { get: () => lazy('v4liteV2', () => createVoyageTextEmbeddingV2('voyage-4-lite')) },
+    v4nanoV2: { get: () => lazy('v4nanoV2', () => createVoyageTextEmbeddingV2('voyage-4-nano')) },
+    code4V2: { get: () => lazy('code4V2', () => createVoyageTextEmbeddingV2('voyage-code-4')) },
     // Text models (V2) - voyage-3 series
     largeV2: { get: () => lazy('largeV2', () => createVoyageTextEmbeddingV2('voyage-3-large')) },
     v35V2: { get: () => lazy('v35V2', () => createVoyageTextEmbeddingV2('voyage-3.5')) },
@@ -280,6 +290,8 @@ export const voyage: VoyageTextEmbeddingModelV3 & {
     context4: { get: () => lazy('context4', () => createVoyageContextualizedEmbedding('voyage-context-4')) },
     // Reranker models
     reranker: { get: () => lazy('reranker', () => createVoyageReranker('rerank-2.5')) },
+    reranker3: { get: () => lazy('reranker3', () => createVoyageReranker('rerank-3')) },
+    reranker3lite: { get: () => lazy('reranker3lite', () => createVoyageReranker('rerank-3-lite')) },
     reranker25: { get: () => lazy('reranker25', () => createVoyageReranker('rerank-2.5')) },
     reranker25lite: { get: () => lazy('reranker25lite', () => createVoyageReranker('rerank-2.5-lite')) },
     reranker2: { get: () => lazy('reranker2', () => createVoyageReranker('rerank-2')) },
